@@ -1,0 +1,12 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/audio">
+        <file>sounds/vadim_makes_sound-modern-success-confirmation-notification-566072.mp3</file>
+        <file>sounds/vadim_makes_sound-soft-ui-warning-alert-1-614153.mp3</file>
+        <file>sounds/universfield-warning-notification-199277.mp3</file>
+        <file>sounds/universfield-error-notification-012-132111.mp3</file>
+        <file>sounds/dragon-studio-pop-402324.mp3</file>
+        <file>sounds/dragon-studio-bubble-pop-406640.mp3</file>
+        <file>sounds/sfxmint-mahjong-04.mp3</file>
+    </qresource>
+</RCC>

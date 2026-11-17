@@ -1,0 +1,31 @@
+# 构建产物（qmake / MSVC / jom）
+build/
+debug/
+release/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+*.tlog
+Makefile
+Makefile.*
+*.vcxproj*
+*.sln
+.qmake.stash
+
+# Qt Creator 个人配置
+*.pro.user
+*.pro.user.*
+CMakeLists.txt.user*
+
+# 编辑器 / 系统
+.vs/
+.vscode/
+.idea/
+.qtc_clangd/
+.cache/
+Thumbs.db
+desktop.ini
