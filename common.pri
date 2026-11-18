@@ -34,3 +34,23 @@ INCLUDEPATH += $$PWD/logwidget
 SOURCES     += $$PWD/logwidget/logwidget.cpp
 HEADERS     += $$PWD/logwidget/logwidget.h
 FORMS       += $$PWD/logwidget/logwidget.ui
+
+# --- litewidget:无边框窗口底座 ---
+# litewidget   最简方角窗口(菜单 / 浮窗)
+# litewidget2  右上角凸起条的圆角窗口,自绘轮廓 + 自管最大化
+# geometry     纯函数,不依赖控件,回归工程可以直接断言
+# windowglyphbutton  线条绘制的窗口按钮(关闭/最大化/还原/最小化)
+INCLUDEPATH += $$PWD/litewidget
+SOURCES     += $$PWD/litewidget/litewidget.cpp \
+               $$PWD/litewidget/litewidget2.cpp \
+               $$PWD/litewidget/litewidget2geometry.cpp \
+               $$PWD/litewidget/windowglyphbutton.cpp
+HEADERS     += $$PWD/litewidget/litewidget.h \
+               $$PWD/litewidget/litewidget2.h \
+               $$PWD/litewidget/litewidget2geometry.h \
+               $$PWD/litewidget/windowglyphbutton.h
+
+# LiteWidget2 用 Get/SetWindowLongPtr + SetWindowPos 去掉非客户区并打开原生
+# 边缘缩放(user32)。放在这里而不是让每个消费方自己加:少了它 gi 会在链接
+# 阶段报三个 LNK2019(SetWindowPos / GetWindowLongPtrW / SetWindowLongPtrW)。
+win32: LIBS += -luser32
