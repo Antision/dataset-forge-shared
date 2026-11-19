@@ -18,6 +18,20 @@ INCLUDEPATH += $$PWD/log
 SOURCES     += $$PWD/log/log.cpp
 HEADERS     += $$PWD/log/log.h
 
+# --- ui:程序级外观(字体) ---
+# appFontFamily() 原来是两个程序各写一份;共用资源前缀不同,函数里都试一遍。
+INCLUDEPATH += $$PWD/ui
+SOURCES     += $$PWD/ui/fonts.cpp
+HEADERS     += $$PWD/ui/fonts.h
+
+# --- task:可等待/可命名的后台任务 ---
+# 线程池由这里拥有(不再由各程序 main.cpp 定义),补全搜索与缩略图解码共用;
+# 退出时能按名字报告/等待仍未返回的任务。BS_thread_pool 是第三方单头文件。
+INCLUDEPATH += $$PWD/task
+SOURCES     += $$PWD/task/task_runner.cpp
+HEADERS     += $$PWD/task/task_runner.h \
+               $$PWD/task/BS_thread_pool.hpp
+
 # --- teobject:可拷贝数据对象的手写信号/槽 ---
 # teTag / teWord 这些数据对象会被复制、每切一次图创建上百个,不能是 QObject,
 # 所以它们用这套轻量连接。名字保留 te 前缀:它是 tag 层自己的词汇(见 TASKS §17)。
@@ -30,9 +44,13 @@ HEADERS     += $$PWD/teobject/teobject.h
 # 两个程序共用;per-tag 控件仍留在 tqe 的 tetag.h。
 INCLUDEPATH += $$PWD/tagview
 SOURCES     += $$PWD/tagview/tag.cpp \
-               $$PWD/tagview/tagviewcontracts.cpp
+               $$PWD/tagview/tagviewcontracts.cpp \
+               $$PWD/tagview/suggestionedit.cpp \
+               $$PWD/tagview/taglistmodel.cpp
 HEADERS     += $$PWD/tagview/tag.h \
-               $$PWD/tagview/tagviewcontracts.h
+               $$PWD/tagview/tagviewcontracts.h \
+               $$PWD/tagview/suggestionedit.h \
+               $$PWD/tagview/taglistmodel.h
 
 # --- qflowlayout:流式布局 + 拖拽重排 ---
 # 出自 Qt 官方 Flow Layout 示例,已扩充 moveItem/indexAt/insertIndexAt
