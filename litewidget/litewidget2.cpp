@@ -19,13 +19,13 @@
 #endif
 
 namespace {
-const QColor kBodyColor(0x1b, 0x1b, 0x1f, 250);     // 不透明度 0.98
-const QColor kStripColor(0x26, 0x26, 0x2c, 250);    // 比 body 亮一档,也是内框色
-const QColor kOutlineColor(140, 146, 154);          // 最外层浅灰边框(不透明;185 太浅,和桌面撞色)
 constexpr int kResizeBorder = 6;
 constexpr int kSnapDistance = 8;                    // 拖到顶边 +8px 内最大化
 constexpr int kTearOffDistance = 24;                // 下拖 24px 撕下
-constexpr int kContentInset = litewidget2::kStroke + litewidget2::kInnerStroke;
+using litewidget2::kBodyColor;
+using litewidget2::kContentInset;
+using litewidget2::kOutlineColor;
+using litewidget2::kStripColor;
 
 /// 进程内的窗口几何记忆(key -> 上次的几何)。不落盘:重启程序回到推荐尺寸。
 QHash<QString, QRect> s_savedGeometry;
@@ -174,13 +174,15 @@ void LiteWidget2::showEvent(QShowEvent* event)
         return;
 
     QRect geometry = *it;
-    if (screen) {
-        const QRect available = screen->availableGeometry();
+    // 按"上次那块屏"来夹:新窗口可能被系统摆到光标所在的另一块屏上,用当前屏
+    // 判断会误以为这块几何在屏幕外,于是干脆不恢复。
+    QScreen* target = QGuiApplication::screenAt(geometry.center());
+    if (!target)
+        target = screen;
+    if (target) {
+        const QRect available = target->availableGeometry();
         geometry.setWidth(qMin(geometry.width(), available.width()));
         geometry.setHeight(qMin(geometry.height(), available.height()));
-        // 上次那块屏不在了就别硬搬回去,让调用方按默认位置开。
-        if (!available.intersects(geometry))
-            return;
         geometry.moveLeft(qBound(available.left(), geometry.left(),
                                  qMax(available.left(), available.right() - geometry.width() + 1)));
         geometry.moveTop(qBound(available.top(), geometry.top(),

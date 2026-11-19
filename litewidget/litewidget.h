@@ -41,6 +41,13 @@ public:
 protected:
     void paintEvent(QPaintEvent* event) override;
 
+    /**
+     * @brief 把内容容器从 1px 边框里拿出来交给调用方(不再拥有它)。
+     *
+     * 派生类要自己摆内容时用(LiteWindow 有标题栏,内容不在边框里)。
+     */
+    QWidget* takeContentWidget();
+
 private:
     QWidget* m_content = nullptr;
     QVBoxLayout* m_outerLayout = nullptr;

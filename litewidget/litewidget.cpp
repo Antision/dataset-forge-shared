@@ -42,6 +42,17 @@ void LiteWidget::setContentWidget(QWidget* widget)
     }
 }
 
+QWidget* LiteWidget::takeContentWidget()
+{
+    if (!m_content)
+        return nullptr;
+    m_outerLayout->removeWidget(m_content);
+    QWidget* taken = m_content;
+    m_content = nullptr;
+    taken->setParent(nullptr);
+    return taken;
+}
+
 QVBoxLayout* LiteWidget::contentLayout() const
 {
     if (!m_content)

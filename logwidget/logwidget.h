@@ -9,8 +9,11 @@
  * LogWindow。原来那份没有任何分级、没有提示音、关掉之后再也不弹,用户看不到
  * 出错的日志。
  *
- * 它的定位永远是"某个窗口的附属窗口":构造时给 owner 当 parent,再
- * setWindowFlag(Qt::Window, true) —— 结果是一个独立窗口,但
+ * 窗口本身是 LiteWindow(整宽标题栏 + 最小化/最大化/关闭三颗按钮,
+ * 和日志窗口"一直摆在那儿"的定位匹配);内容和按钮都在标题栏下面。
+ *
+ * 它的定位永远是"某个窗口的附属窗口":构造时给 owner 当 parent —— 结果是一个
+ * 独立窗口,但
  *   · 永远压在 owner 上面,不会被主界面或别的程序盖住;
  *   · owner 隐藏/销毁时它跟着隐藏/销毁(不需要谁去 detach);
  *   · 收到 Warning/Error 时自己 show() 回来(用户手动关掉过的也会回来)。
@@ -28,13 +31,13 @@
  * 消费方需要在 .pro 里 `QT += multimedia` 和 `include(common/common.pri)`。
  */
 
-#include <QWidget>
+#include "litewindow.h"
 
 namespace Ui {
 class LogWidget;
 }
 
-class LogWidget : public QWidget
+class LogWidget : public LiteWindow
 {
     Q_OBJECT
 

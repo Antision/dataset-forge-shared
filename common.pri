@@ -37,15 +37,18 @@ FORMS       += $$PWD/logwidget/logwidget.ui
 
 # --- litewidget:无边框窗口底座 ---
 # litewidget   最简方角窗口(菜单 / 浮窗)
-# litewidget2  右上角凸起条的圆角窗口,自绘轮廓 + 自管最大化
+# litewidget2  右上角凸起条的圆角窗口,自绘轮廓 + 自管最大化(弹层/渲染窗)
+# litewindow   普通窗口:整宽标题栏 + 三颗标准按钮(大图/筛选/日志)
 # geometry     纯函数,不依赖控件,回归工程可以直接断言
 # windowglyphbutton  线条绘制的窗口按钮(关闭/最大化/还原/最小化)
 INCLUDEPATH += $$PWD/litewidget
 SOURCES     += $$PWD/litewidget/litewidget.cpp \
+               $$PWD/litewidget/litewindow.cpp \
                $$PWD/litewidget/litewidget2.cpp \
                $$PWD/litewidget/litewidget2geometry.cpp \
                $$PWD/litewidget/windowglyphbutton.cpp
 HEADERS     += $$PWD/litewidget/litewidget.h \
+               $$PWD/litewidget/litewindow.h \
                $$PWD/litewidget/litewidget2.h \
                $$PWD/litewidget/litewidget2geometry.h \
                $$PWD/litewidget/windowglyphbutton.h

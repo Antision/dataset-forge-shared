@@ -29,10 +29,12 @@ QColor levelColor(LogWidget::Level level)
 } // namespace
 
 LogWidget::LogWidget(QWidget *parent)
-    : QWidget(parent)
+    : LiteWindow(parent)
     , ui(new Ui::LogWidget)
 {
-    ui->setupUi(this);
+    // 内容是 LiteWindow 标题栏下面那块面板,.ui 的布局装到它身上。
+    ui->setupUi(contentWidget());
+    setWindowTitle(QStringLiteral("Log"));
 
     // 日志只读,但保留选中/复制的能力
     ui->textEdit->setReadOnly(true);

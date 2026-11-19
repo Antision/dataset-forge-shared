@@ -30,6 +30,7 @@
  * 沿法线偏移,否则 45° 的过渡段上那条 1px 边框看上去只有别的边的 70%。
  */
 
+#include <QColor>
 #include <QPainterPath>
 #include <QPointF>
 #include <QRect>
@@ -48,6 +49,16 @@ constexpr int kTabRadius = 2;
 constexpr int kStroke = 1;
 /// 内层条灰边框的宽度(逻辑像素)。1px 在深色底上几乎看不出来,给 4px。
 constexpr int kInnerStroke = 4;
+
+// ---- 配色(所有 lite 窗口共用,只在这里改) ----
+/// 最外层浅灰边框。185 太浅,和浅色桌面撞色;140 在深浅底上都看得见。
+inline const QColor kOutlineColor(140, 146, 154);
+/// 凸起条 / 标题栏,同时也是内框色。
+inline const QColor kStripColor(0x26, 0x26, 0x2c, 250);
+/// body 底色。
+inline const QColor kBodyColor(0x1b, 0x1b, 0x1f, 250);
+/// 内容面板相对窗口边缘让出来的距离(外框 + 内框)。
+inline constexpr int kContentInset = kStroke + kInnerStroke;
 /// 拖动把手的宽度(关闭按钮左边那一段,普通状态下只占 strip 的一格)。
 constexpr int kHandleWidth = 36;
 /// 每个窗口按钮的宽度(关闭 / 还原 / 最小化共用)。
