@@ -11,6 +11,29 @@
 #   #include "qflowlayout.h"
 # 这样从"项目内自带一份"迁到共享库时,源文件的 include 不用改。
 
+# --- log:程序日志(teLog / telog) ---
+# 原来是 tqe 的 func.h 里的设施;tag 层搬进 common 后两边都要用,单独成模块。
+# 只是转发到 qDebug + 一个 GUI 线程上的 target,不依赖控件。
+INCLUDEPATH += $$PWD/log
+SOURCES     += $$PWD/log/log.cpp
+HEADERS     += $$PWD/log/log.h
+
+# --- teobject:可拷贝数据对象的手写信号/槽 ---
+# teTag / teWord 这些数据对象会被复制、每切一次图创建上百个,不能是 QObject,
+# 所以它们用这套轻量连接。名字保留 te 前缀:它是 tag 层自己的词汇(见 TASKS §17)。
+INCLUDEPATH += $$PWD/teobject
+SOURCES     += $$PWD/teobject/teobject.cpp
+HEADERS     += $$PWD/teobject/teobject.h
+
+# --- tagview:tag 数据层 ---
+# teWord / teTag / teTagList / 快照 / undo / 文本切分。没有一行控件代码,
+# 两个程序共用;per-tag 控件仍留在 tqe 的 tetag.h。
+INCLUDEPATH += $$PWD/tagview
+SOURCES     += $$PWD/tagview/tag.cpp \
+               $$PWD/tagview/tagviewcontracts.cpp
+HEADERS     += $$PWD/tagview/tag.h \
+               $$PWD/tagview/tagviewcontracts.h
+
 # --- qflowlayout:流式布局 + 拖拽重排 ---
 # 出自 Qt 官方 Flow Layout 示例,已扩充 moveItem/indexAt/insertIndexAt
 # 与 QFlowLayoutReorderer。文件头保留 Qt 的 BSD-3-Clause 许可声明。
