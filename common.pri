@@ -46,11 +46,14 @@ INCLUDEPATH += $$PWD/tagview
 SOURCES     += $$PWD/tagview/tag.cpp \
                $$PWD/tagview/tagviewcontracts.cpp \
                $$PWD/tagview/suggestionedit.cpp \
-               $$PWD/tagview/taglistmodel.cpp
+               $$PWD/tagview/taglistmodel.cpp \
+               $$PWD/tagview/taglistview.cpp
 HEADERS     += $$PWD/tagview/tag.h \
                $$PWD/tagview/tagviewcontracts.h \
                $$PWD/tagview/suggestionedit.h \
-               $$PWD/tagview/taglistmodel.h
+               $$PWD/tagview/taglistmodel.h \
+               $$PWD/tagview/taglistview.h \
+               $$PWD/tagview/type_search.h
 
 # --- qflowlayout:流式布局 + 拖拽重排 ---
 # 出自 Qt 官方 Flow Layout 示例,已扩充 moveItem/indexAt/insertIndexAt
