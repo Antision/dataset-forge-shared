@@ -125,6 +125,14 @@ public:
     void closeCaption();
     /// Image currently shown, or an empty string.
     QString captionImagePath() const { return m_imagePath; }
+    /// True when the shown list has changes the caption file does not have yet.
+    /// The host decides what to do with it (save prompt, flash, ...); the view
+    /// deliberately knows nothing about a save button.
+    bool isDirty() const { return showing_list&&!showing_list->isSaved; }
+    /// Called by the host after it wrote the caption: clears the dirty state.
+    /// (CaptionSource::save() already does this; this is for hosts that write
+    /// through another path.)
+    void markSaved(){ if(showing_list) showing_list->isSaved=true; }
     void onTagEdited(std::shared_ptr<teTag>tag);
     /**
      * @brief Replaces the shown list's content and makes everyone re-read it.

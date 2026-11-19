@@ -55,6 +55,12 @@ HEADERS     += $$PWD/tagview/tag.h \
                $$PWD/tagview/taglistview.h \
                $$PWD/tagview/type_search.h
 
+# --- imageview:图片查看窗口(滚轮缩放/拖动/点击切换) ---
+# 出自 tqe 的 teimagewidget.*;窗口外观由宿主自己套(tqe 的 teImageWidget 薄壳)。
+INCLUDEPATH += $$PWD/imageview
+SOURCES     += $$PWD/imageview/imageview.cpp
+HEADERS     += $$PWD/imageview/imageview.h
+
 # --- qflowlayout:流式布局 + 拖拽重排 ---
 # 出自 Qt 官方 Flow Layout 示例,已扩充 moveItem/indexAt/insertIndexAt
 # 与 QFlowLayoutReorderer。文件头保留 Qt 的 BSD-3-Clause 许可声明。
