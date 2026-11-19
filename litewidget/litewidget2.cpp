@@ -261,10 +261,22 @@ void LiteWidget2::paintEvent(QPaintEvent* event)
     const QRectF outer = QRectF(rect());
 
     // 内缩量按"垂直于边"算,cos^2 过渡段才和直边一样宽。
-    painter.fillPath(litewidget2::outlinePath(outer, m_maximized, 0), kOutlineColor);
+    painter.fillPath(litewidget2::outlinePath(outer, m_maximized, 0), kOutlineColor);   // 1
     painter.fillPath(litewidget2::outlinePath(outer, m_maximized, litewidget2::kStroke),
-                     kStripColor);
-    painter.fillPath(litewidget2::bodyPath(outer, kContentInset, !m_maximized), kBodyColor);
+                     kStripColor);                                                     // 2
+    painter.fillPath(litewidget2::bodyPath(outer, kContentInset, !m_maximized), kBodyColor); // 3
+
+    // 4. 玻璃标题栏:把顶部这一条(平的 + cos² 过渡)的像素**换成**半透明色。
+    //    不能叠上去:alpha 叠在已经是不透明的条灰上,结果还是不透明,只是变亮。
+    //    Source 只作用在裁剪区里,所以 1px 外框和左右下的内框带仍然是不透明的。
+    painter.save();
+    painter.setClipPath(litewidget2::outlinePath(outer, m_maximized, litewidget2::kStroke));
+    painter.setClipRect(QRectF(0, 0, outer.width(), litewidget2::kStripHeight),
+                        Qt::IntersectClip);
+    painter.setCompositionMode(QPainter::CompositionMode_Source);
+    painter.fillRect(QRectF(0, 0, outer.width(), litewidget2::kStripHeight),
+                     litewidget2::kStripGlassColor);
+    painter.restore();
 }
 
 void LiteWidget2::resizeEvent(QResizeEvent* event)
