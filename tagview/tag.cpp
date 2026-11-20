@@ -285,6 +285,10 @@ teTag::teTag(const char *str, bool forceSentence){
 
 teTag::teTag(teTag &&in):words(std::move(in.words)){
     info=in.info;
+    marks=std::move(in.marks);
+    markOrder=std::move(in.markOrder);
+    decoration=std::move(in.decoration);
+    decorationSet=in.decorationSet;
 }
 
 teTag &teTag::operator=(const teTag &in){
@@ -296,6 +300,10 @@ teTag &teTag::operator=(const teTag &in){
     for(teWord*wc:in.words)
         words.push_back(new teWord{*wc});
     weight=in.weight;
+    marks=in.marks;
+    markOrder=in.markOrder;
+    decoration=in.decoration;
+    decorationSet=in.decorationSet;
     edited();
     return *this;
 }

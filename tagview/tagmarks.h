@@ -1,0 +1,122 @@
+#ifndef TAGMARKS_H
+#define TAGMARKS_H
+
+/**
+ * @file tagmarks.h
+ * @brief Display marks for tag rows: colours, emoji/PNG icons and the rules that
+ *        produce them from the tag text (MARK-01..06).
+ *
+ * Nothing here changes a tag. The registry answers "how should this tag look",
+ * and TagDelegate draws the answer; the same registry is used by tqe and
+ * gallery_info, which is what keeps their decoration identical.
+ */
+
+#include "tag.h"
+#include "tagvisual.h"
+
+#include <QColor>
+#include <QFontMetrics>
+#include <QHash>
+#include <QRegularExpression>
+#include <QRect>
+#include <QString>
+#include <QVector>
+
+/// A dark colour (black hair) disappears on the black row; lift the lightness
+/// until it reads as a border, keeping the hue. Used by the delegate too.
+QColor tagBorderColor(const QColor& color,int alpha=217);
+
+/**
+ * @brief Recomputes the tag's stored decoration from its text.
+ *
+ * Decoration is display data the editors own: the rules run when a control reads
+ * or re-reads a tag, never inside paint(). Call this after the text changed.
+ */
+void refreshTagDecoration(const std::shared_ptr<teTag>& tag);
+
+/// Writes the decoration only when the tag has none yet (first read).
+void ensureTagDecoration(const std::shared_ptr<teTag>& tag);
+
+/// One drawn chip and the rectangle it occupies (used for painting and hit
+/// testing - both call layoutTagRow()).
+struct TagChip {
+    QString id;
+    QString icon;
+    QString tooltip;
+    QRect rect;
+    /// Emoji/PNG size for this chip. Shrinks when a row has several icons.
+    int iconPx=16;
+};
+
+/// The geometry of one row: the chips on the left and the text that is left.
+struct TagRowLayout {
+    QRect textRect;
+    QVector<TagChip> chips;
+};
+
+/**
+ * @brief Draws and hit-tests one row from the same geometry (MARK-05).
+ *
+ * `rowRect` is the delegate's item rectangle. Chips are 18px high, padded 6px
+ * left/right, and the text starts after the last one; without chips the text
+ * keeps the old 4px inset.
+ */
+TagRowLayout layoutTagRow(const QRect& rowRect,const TagVisual& visual,
+                          const QFontMetrics& metrics);
+
+/**
+ * @brief The process-wide decoration registry.
+ *
+ * Loaded lazily from `<appDir>/data/decorations.json`; a missing file is
+ * generated from the built-in defaults. Marks set by editor controls win over
+ * the rules, so a control can always override what a rule says.
+ */
+class TagMarkRegistry
+{
+public:
+    static TagMarkRegistry& instance();
+
+    /// Loads `filePath`, or the default path when it is empty. Replaces the
+    /// current rules; safe to call again (the decoration editor does).
+    void load(const QString& filePath=QString());
+    /// Path load() used (empty before the first call).
+    QString filePath() const { return m_path; }
+    bool isLoaded() const { return m_loaded; }
+    int ruleCount() const { return int(m_rules.size()); }
+
+    /// The decoration the rules produce for `tag` (what the editor control
+    /// writes into teTag::decoration).
+    TagVisual decorate(const teTag& tag) const;
+    /// How `tag` should be drawn: its stored decoration plus control marks.
+    /// No text rules here - a tag without a decoration control stays plain.
+    TagVisual resolve(const teTag& tag) const;
+    /// Colour for a name from the table; invalid when unknown.
+    QColor colorFor(const QString& name) const;
+
+    /// Writes the built-in defaults to `filePath` (used on first run and by the
+    /// decoration editor's "restore defaults").
+    static bool writeDefaults(const QString& filePath);
+
+private:
+    struct Rule {
+        QString tag;            ///< exact match (empty = regex rule)
+        QRegularExpression regex;
+        QString colorFrom;      ///< regex capture group name for the colour
+        QString icon;
+    };
+
+    void loadDefaults();
+    void applyRules(const QString& text,TagVisual& visual) const;
+    void applyColorName(const QString& name,TagVisual& visual) const;
+    /// Colours named in `text`, in the order they appear (MARK-03/06).
+    QStringList colorsInText(const QString& text) const;
+    /// "gradient from a to b", "x hair with y streaks", rainbow ... .
+    void applyTextPattern(const QString& text,TagVisual& visual) const;
+
+    bool m_loaded=false;
+    QString m_path;
+    QHash<QString,QColor> m_colors;
+    QVector<Rule> m_rules;
+};
+
+#endif // TAGMARKS_H

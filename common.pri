@@ -47,11 +47,14 @@ SOURCES     += $$PWD/tagview/tag.cpp \
                $$PWD/tagview/tagviewcontracts.cpp \
                $$PWD/tagview/suggestionedit.cpp \
                $$PWD/tagview/taglistmodel.cpp \
+               $$PWD/tagview/tagmarks.cpp \
                $$PWD/tagview/taglistview.cpp
 HEADERS     += $$PWD/tagview/tag.h \
                $$PWD/tagview/tagviewcontracts.h \
                $$PWD/tagview/suggestionedit.h \
                $$PWD/tagview/taglistmodel.h \
+               $$PWD/tagview/tagmarks.h \
+               $$PWD/tagview/tagvisual.h \
                $$PWD/tagview/taglistview.h \
                $$PWD/tagview/type_search.h
 

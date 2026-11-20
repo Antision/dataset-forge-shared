@@ -1,6 +1,7 @@
 #include "taglistview.h"
 #include "tag.h"
 #include "taglistmodel.h"
+#include "tagmarks.h"
 #include "fonts.h"
 
 #include <QAction>
@@ -376,11 +377,9 @@ void TagListView::typeSearch(const QString &text){
 void TagListView::onCaptionListGone(teTagList *list){
     if(!list||list!=showing_list)
         return;
-    // The list the view was showing is dying with its picture: drop every
-    // pointer before it becomes dangling, and tell the editors to let go.
+    // The list the view was showing is dying with its picture: clear() drops
+    // every pointer before it becomes dangling and tells the editors to let go.
     clear();
-    if(m_editorHost)
-        m_editorHost->clearAll();
 }
 
 void TagListView::load(teTagList*newlist){
@@ -401,8 +400,16 @@ void TagListView::load(teTagList*newlist){
     // The editors read the list here, before the selection is restored: reading
     // may merge tags, which rebuilds rows, and a row index chosen before that
     // would point at whatever moved into its place.
-    if(m_editorHost)
+    if(m_editorHost){
         m_editorHost->readAll(showing_list);
+    }else{
+        // Program without editors (gallery_info): the same rule engine, applied
+        // once on load. tqe has the decoration control, so it never comes here.
+        for(const std::shared_ptr<teTag>& tag:showing_list->getTags()){
+            tag->decoration=TagMarkRegistry::instance().decorate(*tag);
+            tag->decorationSet=!tag->decoration.isEmpty();
+        }
+    }
 
     if(tmpSelectIndex>-1&&m_model->rowCount()>0){
         const int row = std::min(tmpSelectIndex,m_model->rowCount()-1);
@@ -462,6 +469,12 @@ void TagListView::clear(teTagList *in){
         }
         showing_list=nullptr;
         m_currentCoreBeforeReset.reset();
+        // The editors hold the list they last read (their own connectedList) and
+        // touch it on the next read. Clearing the view is the moment they have to
+        // let go: the picture may delete its list right after this, and the next
+        // unloadList() would disconnect from freed memory.
+        if(m_editorHost)
+            m_editorHost->clearAll();
     }
 }
 

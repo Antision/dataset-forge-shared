@@ -193,6 +193,15 @@ public:
         return true;
     }
 
+    /**
+     * @brief Chip hit testing (MARK-05).
+     *
+     * Painting and hit testing both call layoutTagRow(), so a chip that is
+     * drawn is exactly a chip that can be clicked. A press+release on the same
+     * chip is swallowed (the row must not select or start editing) and emitted.
+     */
+    bool editorEvent(QEvent* event,QAbstractItemModel* model,
+                     const QStyleOptionViewItem& option,const QModelIndex& index) override;
     QWidget* createEditor(QWidget* parent,const QStyleOptionViewItem& option,const QModelIndex& index) const override;
     void setEditorData(QWidget* editor,const QModelIndex& index) const override;
     void setModelData(QWidget* editor,QAbstractItemModel* model,const QModelIndex& index) const override;
@@ -205,6 +214,11 @@ public:
         m_editingRow=-1;
         m_activeEditor=nullptr;
     }
+
+signals:
+    /// A chip was clicked. `core` is the tag of the row, `chipId` identifies the
+    /// chip (see TagChip::id).
+    void chipActivated(teTag* core,const QString& chipId);
 
 protected:
     bool eventFilter(QObject* watched,QEvent* event) override;
@@ -222,6 +236,11 @@ private:
     /// The editor handed out by createEditor(); used by paint() to know whether
     /// the text is currently covered by it.
     mutable QPointer<QWidget> m_activeEditor;
+    /// Chip hover / press state, per row (MARK-05).
+    mutable int m_hoverRow=-1;
+    mutable QString m_hoverChip;
+    mutable int m_pressedRow=-1;
+    mutable QString m_pressedChip;
 };
 
 #endif // TAGLISTMODEL_H

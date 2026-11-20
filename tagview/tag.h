@@ -18,7 +18,9 @@
 
 #include "teobject.h"
 #include "log.h"
+#include "tagvisual.h"
 
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QString>
@@ -85,6 +87,10 @@ public:
     teTag(const char* str, bool forceSentence=false);
     teTag(const teTag&in):weight(in.weight),type(in.type){
         info=in.info;
+        marks=in.marks;
+        markOrder=in.markOrder;
+        decoration=in.decoration;
+        decorationSet=in.decorationSet;
         for(teWord*wc:in.words)
             words.push_back(new teWord{*wc});
     }
@@ -100,6 +106,47 @@ public:
      * the tag from its list.
      */
     bool retired=false;
+    /**
+     * @brief Display marks set by editor controls, one per owner (MARK-02).
+     *
+     * ownerId identifies who set it (a color control, an editor page, ...);
+     * markId is what it set (a color name, an emoji, a PNG path). Marks are
+     * display-only: they never take part in undo, merging or the saved text.
+     * markOrder keeps the registration order, because icons are drawn in it.
+     */
+    QHash<QString,QString> marks;
+    QStringList markOrder;
+    /**
+     * @brief The row decoration written by the decoration editor control.
+     *
+     * The control owns the rules (`decorations.json`) and stores the resolved
+     * result here; the delegate only draws it. This is what makes decoration an
+     * editor feature instead of a global paint-time rule.
+     */
+    TagVisual decoration;
+    bool decorationSet=false;
+    void setMark(const QString& ownerId,const QString& markId){
+        if(ownerId.isEmpty()||markId.isEmpty())
+            return;
+        if(!marks.contains(ownerId))
+            markOrder.append(ownerId);
+        marks.insert(ownerId,markId);
+        edited();
+    }
+    void clearMark(const QString& ownerId){
+        if(marks.remove(ownerId)>0){
+            markOrder.removeAll(ownerId);
+            edited();
+        }
+    }
+    QString markFor(const QString& ownerId) const { return marks.value(ownerId); }
+    void clearMarks(){
+        if(marks.isEmpty())
+            return;
+        marks.clear();
+        markOrder.clear();
+        edited();
+    }
     /**
      * @brief "This tag was merged once; do not merge it away by itself again."
      *

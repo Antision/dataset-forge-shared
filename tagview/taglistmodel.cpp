@@ -1,5 +1,15 @@
 #include "taglistmodel.h"
 #include "fonts.h"
+#include "tagmarks.h"
+
+#include <QCoreApplication>
+#include <QFileInfo>
+#include <QLinearGradient>
+#include <QPersistentModelIndex>
+#include <QPixmap>
+#include <QTimer>
+
+#include <algorithm>
 
 namespace {
 
@@ -493,12 +503,132 @@ void TagDelegate::paint(QPainter* painter,const QStyleOptionViewItem& option,con
     const bool current  = selected&&(option.state&QStyle::State_HasFocus);
     const TagColors colors = colorsFor(selected,current,hovered);
 
+    auto* core = index.data(TagListModel::TagCoreRole).value<teTag*>();
+    const TagVisual visual = core ? TagMarkRegistry::instance().resolve(*core)
+                                  : TagVisual();
+    QFont font(appFontFamily(),15);
+    const QFontMetrics metrics(font);
+    const TagRowLayout layout = layoutTagRow(option.rect,visual,metrics);
+
     painter->save();
     const QRect rect = option.rect;
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(colors.background);
-    painter->drawRect(rect);
-    painter->setPen(QPen(hovered?colors.hoverBorder:colors.border,1));
+
+    // Fill: the mark's colour / stripes / gradient when there is one. Selection
+    // never fills the row - it only changes the border below, so a selected tag
+    // and a coloured tag cannot be mistaken for each other.
+    if(visual.streaked&&!visual.gradientStops.isEmpty()){
+        const int streaks=visual.gradientStops.size();
+        int cells=12;
+        if(streaks+2>cells)
+            cells=streaks+2+(streaks&1);        // keep the count even
+        const double width=double(rect.width())/double(cells);
+        if(visual.hasBase){
+            QColor base=visual.baseColor;
+            if(visual.whiteDominant)
+                painter->fillRect(rect,QColor(0xf2,0xf2,0xf2));
+            else{
+                base.setAlpha(70);
+                painter->fillRect(rect,base);
+            }
+        }else{
+            painter->fillRect(rect,QColor(0,0,0));
+        }
+        for(int i=0;i<streaks;++i){
+            QColor color=visual.gradientStops[i];
+            color.setAlpha(visual.whiteDominant?70:120);
+            painter->fillRect(QRectF(rect.left()+(2+i)*width,rect.top(),
+                                     width+1.0,rect.height()),color);
+        }
+    }else if(visual.striped&&!visual.gradientStops.isEmpty()){
+        const int colors=visual.gradientStops.size();
+        const int cells=std::max(12,colors);
+        const double width=double(rect.width())/double(cells);
+        for(int i=0;i<cells;++i){
+            QColor band=visual.gradientStops[i%colors];
+            band.setAlpha(visual.whiteDominant?90:90);
+            painter->fillRect(QRectF(rect.left()+i*width,rect.top(),
+                                     width+1.0,rect.height()),band);
+        }
+    }else if(visual.gradient&&!visual.gradientStops.isEmpty()){
+        QLinearGradient gradient(rect.topLeft(),rect.topRight());
+        for(int i=0;i<visual.gradientStops.size();++i){
+            QColor color=visual.gradientStops[i];
+            color.setAlpha(48);
+            gradient.setColorAt(visual.gradientStops.size()>1
+                                    ?double(i)/double(visual.gradientStops.size()-1):0.0,
+                                color);
+        }
+        painter->setBrush(gradient);
+        painter->setPen(Qt::NoPen);
+        painter->drawRect(rect);
+    }else if(visual.hasColor){
+        painter->setBrush(visual.fill);
+        painter->setPen(Qt::NoPen);
+        painter->drawRect(rect);
+    }else{
+        painter->setBrush(QColor(0,0,0));
+        painter->setPen(Qt::NoPen);
+        painter->drawRect(rect);
+    }
+
+    // Chips (MARK-05): the same layoutTagRow() the hit test uses.
+    painter->setFont(font);
+    for(const TagChip& chip:layout.chips){
+        // No button frame around a decorative icon: the emoji/PNG is drawn as
+        // itself. The chip rect is only the hit area (MARK-05).
+        const TagIconSpec spec{chip.icon,QString()};
+        if(spec.isImage()){
+            const QString path=QFileInfo(spec.value).isAbsolute()
+                                   ?spec.value
+                                   :QCoreApplication::applicationDirPath()
+                                        +QStringLiteral("/data/icons/")+spec.value;
+            QPixmap pixmap(path);
+            if(!pixmap.isNull()){
+                const QPixmap scaled=pixmap.scaled(chip.iconPx,chip.iconPx,Qt::KeepAspectRatio,
+                                                   Qt::SmoothTransformation);
+                const QRect target(chip.rect.center().x()-scaled.width()/2,
+                                   chip.rect.center().y()-scaled.height()/2,
+                                   scaled.width(),scaled.height());
+                painter->drawPixmap(target,scaled);
+            }else{
+                painter->setPen(Qt::white);
+                painter->drawText(chip.rect,Qt::AlignCenter,spec.value);
+            }
+        }else{
+            QFont iconFont=font;
+            iconFont.setPixelSize(chip.iconPx);
+            painter->setFont(iconFont);
+            painter->setPen(Qt::white);
+            painter->drawText(chip.rect,Qt::AlignCenter,spec.value);
+            painter->setFont(font);
+        }
+    }
+
+    // Border: selection only changes this border (no green fill). A coloured tag
+    // keeps its own colour while unselected; white-dominant tags get a white
+    // border so the black text has a frame to sit in.
+    painter->setBrush(Qt::NoBrush);
+    if(current){
+        painter->setPen(QPen(QColor(0x00,0xd9,0x6d),1));
+    }else if(selected){
+        painter->setPen(QPen(QColor(0x2a,0x6b,0x45),1));
+    }else if(visual.whiteDominant){
+        painter->setPen(QPen(QColor(0xf2,0xf2,0xf2),1));
+    }else if(visual.gradient&&visual.gradientStops.size()>=2){
+        QLinearGradient gradient(rect.topLeft(),rect.topRight());
+        for(int i=0;i<visual.gradientStops.size();++i)
+            gradient.setColorAt(double(i)/double(visual.gradientStops.size()-1),
+                                tagBorderColor(visual.gradientStops[i],255));
+        painter->setPen(QPen(QBrush(gradient),1));
+    }else if(visual.streaked||visual.striped){
+        const QColor base=visual.hasBase?visual.baseColor
+                                        :visual.gradientStops.value(0);
+        painter->setPen(QPen(tagBorderColor(base),1));
+    }else if(visual.hasColor){
+        painter->setPen(QPen(tagBorderColor(visual.border),1));
+    }else{
+        painter->setPen(QPen(hovered?colors.hoverBorder:colors.border,1));
+    }
     painter->drawRect(rect.adjusted(1,1,-1,-1));
 
     // The text is hidden only while the inline editor is really on screen for
@@ -506,12 +636,113 @@ void TagDelegate::paint(QPainter* painter,const QStyleOptionViewItem& option,con
     // own: cancelling with Escape used to leave the row blank until the next row
     // was edited (and it stayed blank even after switching images).
     if(!(m_activeEditor&&m_activeEditor->isVisible()&&m_editingRow==index.row())){
-        painter->setPen(selected?QColor(0x00,0xd9,0x6d):Qt::white);
-        QFont font(appFontFamily(),15);
         painter->setFont(font);
-        painter->drawText(rect.adjusted(4,0,-4,0),Qt::AlignVCenter|Qt::AlignLeft,text);
+        painter->setPen(selected?QColor(0x00,0xd9,0x6d)
+                             :(visual.whiteDominant?QColor(0,0,0):Qt::white));
+        const QString elided=metrics.elidedText(text,Qt::ElideMiddle,
+                                                std::max(0,layout.textRect.width()));
+        painter->drawText(layout.textRect,Qt::AlignVCenter|Qt::AlignLeft,elided);
     }
     painter->restore();
+}
+
+bool TagDelegate::editorEvent(QEvent* event,QAbstractItemModel* model,
+                             const QStyleOptionViewItem& option,const QModelIndex& index)
+{
+    const QEvent::Type type=event->type();
+    if(type!=QEvent::MouseMove&&type!=QEvent::MouseButtonPress
+        &&type!=QEvent::MouseButtonRelease&&type!=QEvent::MouseButtonDblClick
+        &&type!=QEvent::Leave)
+        return false;
+
+    auto* view=qobject_cast<QAbstractItemView*>(parent());
+    auto updateRow=[view,model](int row){
+        if(view&&model&&row>=0)
+            view->update(model->index(row,0));
+    };
+    auto layoutFor=[&option,&index](TagRowLayout& out)->bool{
+        const auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>();
+        if(!core)
+            return false;
+        const QFont font(appFontFamily(),15);
+        out=layoutTagRow(option.rect,TagMarkRegistry::instance().resolve(*core),
+                         QFontMetrics(font));
+        return true;
+    };
+    auto chipAt=[&layoutFor,&option](const QPoint& pos)->QString{
+        TagRowLayout layout;
+        if(!layoutFor(layout)||!option.rect.contains(pos))
+            return QString();
+        for(const TagChip& chip:layout.chips)
+            if(chip.rect.contains(pos))
+                return chip.id;
+        return QString();
+    };
+    auto clearHover=[&]{
+        if(m_hoverRow<0&&m_hoverChip.isEmpty())
+            return;
+        const int oldRow=m_hoverRow;
+        m_hoverRow=-1;
+        m_hoverChip.clear();
+        updateRow(oldRow);
+    };
+
+    if(type==QEvent::Leave){
+        clearHover();
+        return false;
+    }
+
+    const QPoint pos=static_cast<QMouseEvent*>(event)->position().toPoint();
+    if(type==QEvent::MouseMove){
+        if(!index.isValid()){
+            clearHover();
+            return false;
+        }
+        const QString chip=chipAt(pos);
+        if(m_hoverRow!=index.row()||m_hoverChip!=chip){
+            const int oldRow=m_hoverRow;
+            m_hoverRow=index.row();
+            m_hoverChip=chip;
+            updateRow(oldRow);
+            updateRow(m_hoverRow);
+        }
+        return false;                       // hovering still belongs to the view
+    }
+
+    if(!index.isValid())
+        return false;
+
+    if(type==QEvent::MouseButtonPress){
+        if(!(static_cast<QMouseEvent*>(event)->button()&Qt::LeftButton))
+            return false;
+        const QString chip=chipAt(pos);
+        if(chip.isEmpty())
+            return false;
+        m_pressedRow=index.row();
+        m_pressedChip=chip;
+        updateRow(m_pressedRow);
+        return true;                        // do not select / start a drag
+    }
+
+    if(type==QEvent::MouseButtonDblClick)
+        return !chipAt(pos).isEmpty();      // a chip double click is not an edit
+
+    // MouseButtonRelease: a press that started on a chip is swallowed even when
+    // the pointer moved away, so the row does not select on release.
+    if(m_pressedChip.isEmpty())
+        return false;
+    const int pressedRow=m_pressedRow;
+    const QString pressedChip=m_pressedChip;
+    m_pressedRow=-1;
+    m_pressedChip.clear();
+    updateRow(pressedRow);
+    updateRow(index.row());
+    if(index.row()==pressedRow&&chipAt(pos)==pressedChip){
+        auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>();
+        if(core)
+            emit chipActivated(core,pressedChip);
+    }
+    return true;
 }
 
 QWidget* TagDelegate::createEditor(QWidget* parent,const QStyleOptionViewItem& option,const QModelIndex& index) const
@@ -544,6 +775,17 @@ void TagDelegate::setModelData(QWidget* editor,QAbstractItemModel* model,const Q
         return;
     m_editingRow=-1;
     model->setData(index,lineEdit->text(),Qt::EditRole);
+    // The row is painted again after the editor is really gone. While it is
+    // visible paint() skips this row's text (the editor shows it instead), and
+    // hiding the editor does not schedule a repaint on its own - the row kept
+    // showing the text from before the edit.
+    const QPersistentModelIndex persistent(index);
+    QTimer::singleShot(0,const_cast<TagDelegate*>(this),[this,persistent]{
+        if(!persistent.isValid())
+            return;
+        if(auto* view=qobject_cast<QAbstractItemView*>(parent()))
+            view->update(QModelIndex(persistent));
+    });
     emit const_cast<TagDelegate*>(this)->closeEditor(editor,QAbstractItemDelegate::NoHint);
 }
 
