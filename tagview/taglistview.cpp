@@ -12,6 +12,7 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QScrollBar>
 #include <QTimer>
 
@@ -261,7 +262,7 @@ void TagListView::tagEdit(std::shared_ptr<teTag>tag, QString text,int removeDupl
         tagErase(tag);
 }
 
-void TagListView::startEditingRow(int row)
+void TagListView::startEditingRow(int row,int wordStart,int wordLength)
 {
     if(!m_model||row<0||row>=m_model->rowCount())
         return;
@@ -276,8 +277,19 @@ void TagListView::startEditingRow(int row)
                 m_viewHost->editLongText(this,core);
         return;
     }
+    // The editor opens with a selection: the word that was double-clicked (plus
+    // its trailing space) when there was one, the whole tag otherwise. A caller
+    // with no word (F2, insert) must not overwrite a range edit() already worked
+    // out for this very double click - it runs in the same gesture, and the mouse
+    // position is gone by then.
+    if(m_delegate&&wordStart>=0)
+        m_delegate->setPendingWordSelection(wordStart,wordLength);
+    clearHoverWord();
     this->setCurrentIndex(index);
-    this->edit(index);
+    // Base class on purpose: this path already decided the range, and going
+    // through the reimplemented edit() again would let it decide a second time -
+    // with no mouse position left, it would overwrite the range with "everything".
+    QListView::edit(index,AllEditTriggers,nullptr);
 }
 
 void TagListView::tagEditCore(std::shared_ptr<teTag> core)
@@ -759,6 +771,48 @@ void TagListView::paste()
         tagInsertBelow(false,std::make_shared<teTag>(piece.text,piece.sentence),2);
 }
 
+void TagListView::setEditPopupAlways(bool always)
+{
+    if(m_editPopupAlways==always)
+        return;
+    m_editPopupAlways=always;
+    // Turning it off must not leave a popup that the new rule would not allow.
+    if(!always&&tagDisplay&&tagDisplay->isVisible()&&!shouldShowEditPopup(currentIndex()))
+        hideTagDisplay();
+}
+
+bool TagListView::rowTextIsElided(const QModelIndex& index) const
+{
+    if(!index.isValid())
+        return false;
+    const QString text=index.data(Qt::DisplayRole).toString();
+    if(text.isEmpty())
+        return false;
+    const auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>();
+    const QFont font(appFontFamily(),15);
+    const QFontMetrics metrics(font);
+    const TagRowLayout rowLayout=layoutTagRow(visualRect(index),
+                                              core?TagMarkRegistry::instance().resolve(*core):TagVisual(),
+                                              metrics);
+    // Same condition paint() uses before it calls elidedText().
+    return metrics.horizontalAdvance(text)>rowLayout.textRect.width();
+}
+
+bool TagListView::shouldShowEditPopup(const QModelIndex& index) const
+{
+    if(!index.isValid())
+        return false;
+    if(m_editPopupAlways)
+        return true;
+    if(!selectionModel()||!selectionModel()->isSelected(index))
+        return false;
+    // A sentence is always worth previewing: the row shows one line of it.
+    if(const auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>())
+        if(core->type==teTag::sentence)
+            return true;
+    return rowTextIsElided(index);
+}
+
 void TagListView::showTagDisplayCore(std::shared_ptr<teTag> core)
 {
     if(!core||!tagDisplay)
@@ -957,13 +1011,147 @@ void TagListView::onViewClicked(const QModelIndex& index)
     const int row=index.row();
     if(row<0||row>=int(showing_list->size()))
         return;
-    showTagDisplayCore(showing_list->shareAt(row));
+    // With the Options switch off this is the "preview a tag the row cannot show"
+    // case: a sentence, or a tag whose text is elided. Anything else stays quiet.
+    if(shouldShowEditPopup(index))
+        showTagDisplayCore(showing_list->shareAt(row));
+    else
+        hideTagDisplay();
 }
 
 void TagListView::onViewDoubleClicked(const QModelIndex& index)
 {
-    if(index.isValid())
-        startEditingRow(index.row());
+    if(!index.isValid())
+        return;
+    // Which word was clicked decides what the editor selects. A double click in
+    // the gap between words (or on an elided row) leaves wordStart at -1 and the
+    // editor selects everything, like every other way of starting an edit.
+    int wordStart=-1;
+    int wordLength=0;
+    if(m_doubleClickPos.x()>=0){
+        const auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>();
+        if(core){
+            const QFont font(appFontFamily(),15);
+            const QFontMetrics metrics(font);
+            const TagRowLayout rowLayout=layoutTagRow(visualRect(index),
+                                                      TagMarkRegistry::instance().resolve(*core),
+                                                      metrics);
+            const QVector<TagWord> words=layoutTagWords(rowLayout.textRect,
+                                                        index.data(Qt::DisplayRole).toString(),
+                                                        metrics);
+            const int hit=wordAtPosition(words,m_doubleClickPos);
+            if(hit>=0){
+                wordStart=words[hit].start;
+                wordLength=words[hit].length;
+            }
+        }
+    }
+    m_doubleClickPos=QPoint(-1,-1);
+    startEditingRow(index.row(),wordStart,wordLength);
+}
+
+int TagListView::wordStartAt(const QModelIndex& index,const QPoint& pos) const
+{
+    if(!index.isValid()||!m_model)
+        return -1;
+    const auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>();
+    if(!core)
+        return -1;
+    const QFont font(appFontFamily(),15);
+    const QFontMetrics metrics(font);
+    const TagRowLayout rowLayout=layoutTagRow(visualRect(index),
+                                              TagMarkRegistry::instance().resolve(*core),
+                                              metrics);
+    const QVector<TagWord> words=layoutTagWords(rowLayout.textRect,
+                                                index.data(Qt::DisplayRole).toString(),
+                                                metrics);
+    const int hit=wordAtPosition(words,pos);
+    return hit<0?-1:words[hit].start;
+}
+
+void TagListView::clearHoverWord()
+{
+    if(!m_delegate||m_delegate->hoverWordStart()<0)
+        return;
+    const int row=m_delegate->hoverRow();
+    m_delegate->setHoverWord(-1,-1);
+    if(m_model&&row>=0)
+        viewport()->update(visualRect(m_model->index(row,0)));
+}
+
+void TagListView::mouseMoveEvent(QMouseEvent* event)
+{
+    if(m_delegate){
+        const QPoint pos=event->position().toPoint();
+        const QModelIndex index=indexAt(pos);
+        const int row=index.isValid()?index.row():-1;
+        const int wordStart=row>=0?wordStartAt(index,pos):-1;
+        if(row!=m_delegate->hoverRow()||wordStart!=m_delegate->hoverWordStart()){
+            const int oldRow=m_delegate->hoverRow();
+            m_delegate->setHoverWord(row,wordStart);
+            if(m_model&&oldRow>=0)
+                viewport()->update(visualRect(m_model->index(oldRow,0)));
+            if(m_model&&row>=0)
+                viewport()->update(visualRect(m_model->index(row,0)));
+        }
+    }
+    QListView::mouseMoveEvent(event);
+}
+
+void TagListView::leaveEvent(QEvent* event)
+{
+    clearHoverWord();
+    QListView::leaveEvent(event);
+}
+
+bool TagListView::edit(const QModelIndex& index,EditTrigger trigger,QEvent* event)
+{
+    if(m_delegate&&index.isValid()){
+        int wordStart=-1;
+        int wordLength=0;
+        const bool doubleClick=(trigger==DoubleClicked)
+                               ||(event&&event->type()==QEvent::MouseButtonDblClick);
+        // A double click is the only trigger that carries a position; the others
+        // (F2, insert) have no word to preserve, so the editor selects everything.
+        QPoint pos(-1,-1);
+        if(event&&event->type()==QEvent::MouseButtonDblClick)
+            pos=static_cast<QMouseEvent*>(event)->position().toPoint();
+        else if(trigger==DoubleClicked&&m_doubleClickPos.x()>=0)
+            pos=m_doubleClickPos;
+        if(pos.x()>=0){
+            if(const auto* core=index.data(TagListModel::TagCoreRole).value<teTag*>()){
+                const QFont font(appFontFamily(),15);
+                const QFontMetrics metrics(font);
+                const TagRowLayout rowLayout=layoutTagRow(visualRect(index),
+                                                          TagMarkRegistry::instance().resolve(*core),
+                                                          metrics);
+                const QVector<TagWord> words=layoutTagWords(rowLayout.textRect,
+                                                            index.data(Qt::DisplayRole).toString(),
+                                                            metrics);
+                const int hit=wordAtPosition(words,pos);
+                if(hit>=0){
+                    wordStart=words[hit].start;
+                    wordLength=words[hit].length;
+                }
+            }
+        }
+        // Only a double click says anything about a word. Any other trigger
+        // explicitly means "the whole tag", so it resets the range instead of
+        // inheriting whatever the last double click left behind.
+        if(doubleClick)
+            m_delegate->setPendingWordSelection(wordStart,wordLength);
+        else
+            m_delegate->setPendingWordSelection(-1,0);
+    }
+    return QListView::edit(index,trigger,event);
+}
+
+void TagListView::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    m_doubleClickPos=event->position().toPoint();
+    // The word itself is decided in edit(), which Qt calls before it builds the
+    // editor; this only keeps the position for the triggers that carry none.
+    QListView::mouseDoubleClickEvent(event);
 }
 
 void TagListView::onViewCurrentChanged(const QModelIndex& current,const QModelIndex& previous)
@@ -1020,12 +1208,10 @@ bool TagListView::eventFilter(QObject* watched,QEvent* event)
     if(this&&watched==this->viewport()){
         switch(event->type()){
         case QEvent::MouseMove:{
-            // The popup follows the pointer from row to row while it is up; it is
-            // a click (see the view's clicked() signal) that opens it.
-            if(!tagDisplay||!tagDisplay->isVisible())
-                break;
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
             const QModelIndex index = this->indexAt(mouseEvent->position().toPoint());
+            if(!tagDisplay)
+                break;
             if(!index.isValid()){
                 hideTagDisplay();
                 break;
@@ -1033,14 +1219,36 @@ bool TagListView::eventFilter(QObject* watched,QEvent* event)
             teTag* raw = index.data(TagListModel::TagCoreRole).value<teTag*>();
             if(!raw)
                 break;
-            for(const std::shared_ptr<teTag>& core:*showing_list)
-                if(core.get()==raw){
-                    followTagDisplayCore(core);
+            std::shared_ptr<teTag> core;
+            for(const std::shared_ptr<teTag>& candidate:*showing_list)
+                if(candidate.get()==raw){
+                    core=candidate;
                     break;
                 }
+            if(!core)
+                break;
+            if(m_editPopupAlways){
+                // The old behaviour: a click opened it, hovering then walks it
+                // along the rows. Hovering alone never opens it.
+                if(tagDisplay->isVisible())
+                    followTagDisplayCore(core);
+            }else if(shouldShowEditPopup(index)){
+                // Preview mode: the pointer over the *selected* sentence / long
+                // tag is what shows it (and moves it between such rows).
+                if(tagDisplay->isVisible())
+                    followTagDisplayCore(core);
+                else
+                    showTagDisplayCore(core);
+            }else if(tagDisplay->isVisible()){
+                hideTagDisplay();
+            }
             break;
         }
         case QEvent::Leave:
+            // Leave arrives at the viewport, not at the view, so the word frame
+            // has to be dropped here - a frame that outlives the pointer looks
+            // like a second selection.
+            clearHoverWord();
             scheduleTagDisplayHide();
             break;
         case QEvent::MouseButtonPress:{

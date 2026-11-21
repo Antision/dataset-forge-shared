@@ -507,9 +507,10 @@ void TagDelegate::paint(QPainter* painter,const QStyleOptionViewItem& option,con
         return;
 
     const bool selected = option.state&QStyle::State_Selected;
-    const bool hovered  = option.state&QStyle::State_MouseOver;
     const bool current  = selected&&(option.state&QStyle::State_HasFocus);
-    const TagColors colors = colorsFor(selected,current,hovered);
+    // The row does not light up as a whole: the hover frame belongs to one word
+    // and is drawn below (the old widget based list had a widget per word).
+    const TagColors colors = colorsFor(selected,current,false);
 
     auto* core = index.data(TagListModel::TagCoreRole).value<teTag*>();
     const TagVisual visual = core ? TagMarkRegistry::instance().resolve(*core)
@@ -635,7 +636,7 @@ void TagDelegate::paint(QPainter* painter,const QStyleOptionViewItem& option,con
     }else if(visual.hasColor){
         painter->setPen(QPen(tagBorderColor(visual.border),1));
     }else{
-        painter->setPen(QPen(hovered?colors.hoverBorder:colors.border,1));
+        painter->setPen(QPen(colors.border,1));
     }
     painter->drawRect(rect.adjusted(1,1,-1,-1));
 
@@ -650,6 +651,21 @@ void TagDelegate::paint(QPainter* painter,const QStyleOptionViewItem& option,con
         const QString elided=metrics.elidedText(text,Qt::ElideMiddle,
                                                 std::max(0,layout.textRect.width()));
         painter->drawText(layout.textRect,Qt::AlignVCenter|Qt::AlignLeft,elided);
+    }
+
+    // Word hover: the frame goes around the word under the pointer, not around
+    // the row. The geometry comes from the same function the click uses, so the
+    // word that is framed is exactly the word that gets selected.
+    if(index.row()==m_hoverWordRow&&m_hoverWordStart>=0){
+        const QVector<TagWord> words=layoutTagWords(layout.textRect,text,metrics);
+        for(const TagWord& word:words){
+            if(word.start!=m_hoverWordStart)
+                continue;
+            painter->setBrush(Qt::NoBrush);
+            painter->setPen(QPen(QColor(0x00,0xd9,0x6d),1));
+            painter->drawRect(word.rect.adjusted(0,0,-1,-1));
+            break;
+        }
     }
     painter->restore();
 }
@@ -764,8 +780,28 @@ QWidget* TagDelegate::createEditor(QWidget* parent,const QStyleOptionViewItem& o
         m_editor->setParent(parent);
     m_editingRow=index.row();
     m_activeEditor=m_editor;
+    m_editorInitialized=false;
     m_editor->start(index.data(Qt::EditRole).toString());
     return m_editor;
+}
+
+void TagDelegate::setHoverWord(int row,int wordStart)
+{
+    if(m_hoverWordRow==row&&m_hoverWordStart==wordStart)
+        return;
+    m_hoverWordRow=row;
+    m_hoverWordStart=wordStart;
+}
+
+void TagDelegate::setPendingWordSelection(int start,int length)
+{
+    m_pendingSelectionStart=start;
+    m_pendingSelectionLength=length;
+}
+
+QLineEdit* TagDelegate::activeEditor() const
+{
+    return qobject_cast<QLineEdit*>(m_editor.data());
 }
 
 void TagDelegate::setEditorData(QWidget* editor,const QModelIndex& index) const
@@ -773,7 +809,35 @@ void TagDelegate::setEditorData(QWidget* editor,const QModelIndex& index) const
     auto* lineEdit = qobject_cast<QLineEdit*>(editor);
     if(!lineEdit)
         return;
-    lineEdit->setText(index.data(Qt::EditRole).toString());
+    const QString text=index.data(Qt::EditRole).toString();
+    if(m_editorInitialized){
+        // Qt applies the item data again after the editor is up (and whenever the
+        // row changes while it is open). Calling setText() a second time would
+        // reset the cursor and throw away the word selection made below.
+        if(lineEdit->text()!=text)
+            lineEdit->setText(text);
+        return;
+    }
+    m_editorInitialized=true;
+    lineEdit->setText(text);
+    // A double click on a word selects that word and the space after it; every
+    // other way of opening the editor selects the whole tag, which is what the
+    // widget based list did.
+    if(m_pendingSelectionStart>=0){
+        const int start=m_pendingSelectionStart;
+        const int length=m_pendingSelectionLength;
+        m_pendingSelectionStart=-1;
+        m_pendingSelectionLength=0;
+        // Not right here: QLineEdit selects the whole text when it takes focus on
+        // being shown, which happens after this call, so a selection made now is
+        // gone by the time the user can see the editor. The range is applied on
+        // the next event loop turn, once the editor is up.
+        QTimer::singleShot(0,lineEdit,[lineEdit,start,length]{
+            lineEdit->setSelection(start,length);
+        });
+    }else{
+        lineEdit->selectAll();
+    }
 }
 
 void TagDelegate::setModelData(QWidget* editor,QAbstractItemModel* model,const QModelIndex& index) const

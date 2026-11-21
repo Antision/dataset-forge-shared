@@ -43,6 +43,10 @@ class TagListView : public QListView, public TagDisplayOwner, public TagListHost
 {
     Q_OBJECT
 public:
+    /// The trigger-less overloads stay reachable: the three-argument edit() below
+    /// hides them otherwise.
+    using QListView::edit;
+
     explicit TagListView(QWidget* parent=nullptr);
     ~TagListView();
     /**
@@ -201,6 +205,20 @@ public:
 
     /// The text of the selected rows, in the caption's own format.
     QString getSelectText();
+    /**
+     * @brief What the right-hand popup is for (the Options menu switch).
+     *
+     * true: the popup follows the pointer for every row, like it always did.
+     * false: it is only a preview for a row the list cannot show in full - a
+     * sentence tag or one whose text is elided - and only while the pointer is
+     * over that row *and* the row is selected.
+     */
+    void setEditPopupAlways(bool always);
+    bool editPopupAlways() const { return m_editPopupAlways; }
+    /// True when paint() has to elide this row's text (it does not fit).
+    bool rowTextIsElided(const QModelIndex& index) const;
+    /// The rule above, as one question - used by the click and hover paths.
+    bool shouldShowEditPopup(const QModelIndex& index) const;
     /// Hides the magnified popup when the pointer really left it.
     bool eventFilter(QObject* watched,QEvent* event)override;
 public slots:
@@ -219,6 +237,28 @@ protected:
         setFocus();
         QListView::enterEvent(event);
     }
+    /// Tracks the word under the pointer so the delegate can frame it.
+    void mouseMoveEvent(QMouseEvent* event) override;
+    /// The pointer left the list: no word is framed any more.
+    void leaveEvent(QEvent* event) override;
+    /**
+     * @brief Remembers where the double click landed.
+     *
+     * QListView emits doubleClicked() from inside its own mouseDoubleClickEvent(),
+     * so the position has to be recorded before the base class runs - by the time
+     * the slot is called, the event is gone.
+     */
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    /**
+     * @brief Starts the inline editor, after deciding which word was hit.
+     *
+     * This is the only place every way into the editor goes through (the
+     * DoubleClicked edit trigger, F2, "insert tag"), and it runs *before* the
+     * delegate builds the editor - which is exactly when the preselection has to
+     * be known. A view slot such as onViewDoubleClicked() runs after the editor
+     * already exists, so it cannot influence its selection.
+     */
+    bool edit(const QModelIndex& index,EditTrigger trigger,QEvent* event) override;
     /// Moves the current row to the tag starting with what has been typed.
     /// Shared with the multi tag list, see type_search.h.
     void typeSearch(const QString& text);
@@ -231,8 +271,14 @@ private:
     void createModelAndDelegate();
     /// Builds the context menu.
     void createMenu();
-    /// Starts editing `row` (or opens the sentence window).
-    void startEditingRow(int row);
+    /// Starts editing `row` (or opens the sentence window). `wordStart`/`wordLength`
+    /// are the character range to preselect; negative means "select the whole tag".
+    void startEditingRow(int row,int wordStart=-1,int wordLength=0);
+    /// First character of the word under a viewport position, -1 when there is
+    /// none (a gap between words, an elided text, or no row).
+    int wordStartAt(const QModelIndex& index,const QPoint& pos) const;
+    /// Stops framing the word of `row` (repaints the row it was on).
+    void clearHoverWord();
     /// Erases every selected row.
     void eraseSelectedRows();
     /// Drops a row that was left empty by the inline editor.
@@ -259,6 +305,13 @@ private:
     int m_pendingSelectionIndex=-1;
     /// Type-to-search state (see type_search.h).
     TypeSearch typeSearchState;
+    /// See setEditPopupAlways(): false (the default) limits the popup to a
+    /// preview of a selected sentence / elided tag; the program turns it on from
+    /// its own setting.
+    bool m_editPopupAlways=false;
+    /// Where the last double click landed (viewport coordinates); (-1,-1) when
+    /// there was none. Read by onViewDoubleClicked to preselect a word.
+    QPoint m_doubleClickPos{-1,-1};
     /// Who builds the popup and the long-text window; may be null.
     TagViewHost* m_viewHost=nullptr;
 };

@@ -65,6 +65,38 @@ TagRowLayout layoutTagRow(const QRect& rowRect,const TagVisual& visual,
                           const QFontMetrics& metrics);
 
 /**
+ * @brief One word of a tag row: where it is drawn and which characters it covers.
+ *
+ * The old widget based list had one widget per word, so hovering and
+ * double-click-to-select were free. With one row drawn as a whole, words are
+ * geometry instead: layoutTagWords() is the single place that decides where a
+ * word is, and both the hover frame and the double-click selection use it.
+ */
+struct TagWord {
+    QRect rect;      ///< viewport coordinates, vertically centred in the row
+    int start=0;     ///< first character of the word in the tag text
+    /// Characters to select for this word: the word plus the one space after it,
+    /// so that typing over a selection replaces a word, not the whole tag.
+    int length=0;
+};
+
+/**
+ * @brief Splits `text` into the words drawn inside `textRect`.
+ *
+ * Same font and the same left alignment the delegate paints with, so a word
+ * frame lands exactly on the word it belongs to. Returns an empty list when the
+ * text is elided: the drawn string is then not the tag text, and mapping a
+ * position back to a character range would be a lie.
+ */
+QVector<TagWord> layoutTagWords(const QRect& textRect,const QString& text,
+                                const QFontMetrics& metrics);
+
+/**
+ * @brief The word under `pos`, or -1 when the position is in a gap / off the text.
+ */
+int wordAtPosition(const QVector<TagWord>& words,const QPoint& pos);
+
+/**
  * @brief One user-defined decoration for an exact tag text.
  *
  * Stored in the program's own config (the settings dialog edits it); the registry

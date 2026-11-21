@@ -7,6 +7,8 @@
 #include <QStyledItemDelegate>
 #include <functional>
 
+class QLineEdit;
+
 /**
  * @brief QAbstractListModel over a teTagList: one row per tag.
  *
@@ -167,6 +169,13 @@ public:
     bool isEditingRow(int row) const {
         return m_activeEditor&&m_activeEditor->isVisible()&&m_editingRow==row;
     }
+    /// The row the delegate has an editor for, visible or not (-1 for none).
+    /// createEditor() sets it before the editor is shown, which is what the view
+    /// needs to know right after QListView decided to start an edit.
+    int editingRow() const { return m_editingRow; }
+    /// The reused inline editor (nullptr before the first edit). Tests drive the
+    /// selection through it; the view never needs it.
+    QLineEdit* activeEditor() const;
     /// Ends editing right now: hides the editor - and with it the suggestion box,
     /// see SuggestionEdit::hideEvent - and forgets the row.
     void stopEditing() const {
@@ -174,6 +183,7 @@ public:
             m_editor->hide();
         m_editingRow=-1;
         m_activeEditor=nullptr;
+        m_editorInitialized=false;
     }
 
     void paint(QPainter* painter,const QStyleOptionViewItem& option,const QModelIndex& index) const override;
@@ -205,6 +215,24 @@ public:
      */
     bool editorEvent(QEvent* event,QAbstractItemModel* model,
                      const QStyleOptionViewItem& option,const QModelIndex& index) override;
+    /**
+     * @brief The word the pointer is over, or (-1,-1) for none.
+     *
+     * The view computes it (it owns indexAt()/visualRect()) and the delegate only
+     * draws the frame: with one row per tag there is no widget per word, so the
+     * hover has to be geometry, see layoutTagWords().
+     */
+    void setHoverWord(int row,int wordStart);
+    int hoverRow() const { return m_hoverWordRow; }
+    int hoverWordStart() const { return m_hoverWordStart; }
+    /**
+     * @brief Character range the inline editor selects when it opens.
+     *
+     * A double click on a word selects that word (+ the space after it); a double
+     * click anywhere else, and every other way of starting an edit, selects the
+     * whole tag.
+     */
+    void setPendingWordSelection(int start,int length);
     QWidget* createEditor(QWidget* parent,const QStyleOptionViewItem& option,const QModelIndex& index) const override;
     void setEditorData(QWidget* editor,const QModelIndex& index) const override;
     void setModelData(QWidget* editor,QAbstractItemModel* model,const QModelIndex& index) const override;
@@ -216,6 +244,7 @@ public:
         // normally again.
         m_editingRow=-1;
         m_activeEditor=nullptr;
+        m_editorInitialized=false;
     }
 
 signals:
@@ -244,6 +273,18 @@ private:
     mutable QString m_hoverChip;
     mutable int m_pressedRow=-1;
     mutable QString m_pressedChip;
+    /// Word under the pointer, set by the view; -1 when the pointer is between
+    /// words (or off the row). The frame is drawn on that word alone.
+    int m_hoverWordRow=-1;
+    int m_hoverWordStart=-1;
+    /// Selection to apply the next time the inline editor opens (see
+    /// setPendingWordSelection()).
+    mutable int m_pendingSelectionStart=-1;
+    mutable int m_pendingSelectionLength=0;
+    /// setEditorData() runs more than once per edit (Qt re-applies the item data),
+    /// and QLineEdit::setText() drops the selection, so only the first call may
+    /// touch the text.
+    mutable bool m_editorInitialized=false;
 };
 
 #endif // TAGLISTMODEL_H

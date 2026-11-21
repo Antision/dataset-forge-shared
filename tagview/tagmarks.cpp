@@ -623,3 +623,60 @@ TagRowLayout layoutTagRow(const QRect& rowRect,const TagVisual& visual,
     return layout;
 }
 
+QVector<TagWord> layoutTagWords(const QRect& textRect,const QString& text,
+                                const QFontMetrics& metrics)
+{
+    QVector<TagWord> words;
+    if(text.isEmpty()||textRect.width()<=0)
+        return words;
+    // An elided text is not the tag text any more, so there is no honest mapping
+    // from a pixel back to a character: no word frames, and a double click falls
+    // back to "select the whole tag".
+    if(metrics.horizontalAdvance(text)>textRect.width())
+        return words;
+
+    const int size=text.size();
+    int pos=0;
+    while(pos<size){
+        // Leading spaces belong to the word before; a word starts at the first
+        // non-space character.
+        int start=pos;
+        while(start<size&&text.at(start)==QLatin1Char(' '))
+            ++start;
+        if(start>=size)
+            break;
+        int end=start;
+        while(end<size&&text.at(end)!=QLatin1Char(' '))
+            ++end;
+
+        const int tail=(end<size)?1:0;
+        const int left=metrics.horizontalAdvance(text.left(start));
+        const QString wordText=text.mid(start,end-start);
+        // The frame covers the word only - the trailing space is part of the
+        // selection, not of the word (a box around the gap looked like a mistake).
+        const int wordWidth=metrics.horizontalAdvance(wordText);
+        const QRect slot(textRect.left()+left,textRect.top(),
+                         std::max(1,wordWidth),textRect.height());
+
+        TagWord word;
+        word.start=start;
+        word.length=(end-start)+tail;
+        // The ink rectangle, measured with the very alignment paint() draws with.
+        // Doing the ascent/descent arithmetic here instead put the bottom edge
+        // above the descender of "gpyj", so those letters hung out of their frame.
+        word.rect=metrics.boundingRect(slot,Qt::AlignVCenter|Qt::AlignLeft,wordText)
+                      .adjusted(0,0,1,0);
+        words.append(word);
+        pos=end;
+    }
+    return words;
+}
+
+int wordAtPosition(const QVector<TagWord>& words,const QPoint& pos)
+{
+    for(int i=0;i<words.size();++i)
+        if(words[i].rect.contains(pos))
+            return i;
+    return -1;
+}
+
