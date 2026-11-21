@@ -65,6 +65,19 @@ TagRowLayout layoutTagRow(const QRect& rowRect,const TagVisual& visual,
                           const QFontMetrics& metrics);
 
 /**
+ * @brief One user-defined decoration for an exact tag text.
+ *
+ * Stored in the program's own config (the settings dialog edits it); the registry
+ * only applies it. `color` is a colour name from the table or "#rrggbb"; `icon`
+ * is an emoji/character or a file name under data/icons (or an absolute path).
+ */
+struct TagMarkOverride {
+    QString tag;
+    QString color;
+    QString icon;
+};
+
+/**
  * @brief The process-wide decoration registry.
  *
  * Loaded lazily from `<appDir>/data/decorations.json`; a missing file is
@@ -93,6 +106,10 @@ public:
     /// Colour for a name from the table; invalid when unknown.
     QColor colorFor(const QString& name) const;
 
+    /// User overrides from the settings dialog. They win over every rule.
+    void setOverrides(const QVector<TagMarkOverride>& overrides) { m_overrides=overrides; }
+    const QVector<TagMarkOverride>& overrides() const { return m_overrides; }
+
     /// Writes the built-in defaults to `filePath` (used on first run and by the
     /// decoration editor's "restore defaults").
     static bool writeDefaults(const QString& filePath);
@@ -108,6 +125,10 @@ private:
     void loadDefaults();
     void applyRules(const QString& text,TagVisual& visual) const;
     void applyColorName(const QString& name,TagVisual& visual) const;
+    /// Solid colour (no pattern): the shared body of applyColorName().
+    void applySolidColor(const QColor& color,TagVisual& visual) const;
+    /// The settings dialog's per-tag overrides, applied after the rules.
+    void applyOverrides(const QString& text,TagVisual& visual) const;
     /// Colours named in `text`, in the order they appear (MARK-03/06).
     QStringList colorsInText(const QString& text) const;
     /// "gradient from a to b", "x hair with y streaks", rainbow ... .
@@ -117,6 +138,7 @@ private:
     QString m_path;
     QHash<QString,QColor> m_colors;
     QVector<Rule> m_rules;
+    QVector<TagMarkOverride> m_overrides;
 };
 
 #endif // TAGMARKS_H

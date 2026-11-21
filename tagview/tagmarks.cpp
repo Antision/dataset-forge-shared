@@ -305,6 +305,13 @@ void TagMarkRegistry::applyColorName(const QString& name,TagVisual& visual) cons
     const QColor color=colorFor(name);
     if(!color.isValid())
         return;
+    applySolidColor(color,visual);
+}
+
+void TagMarkRegistry::applySolidColor(const QColor& color,TagVisual& visual) const
+{
+    if(!color.isValid())
+        return;
     visual.hasColor=true;
     visual.gradient=false;
     visual.striped=false;
@@ -318,6 +325,34 @@ void TagMarkRegistry::applyColorName(const QString& name,TagVisual& visual) cons
     // *lighter* than a normal row, which is exactly backwards.
     visual.fill=color.lightnessF()<0.25f?QColor(0,0,0,0)
                  :(visual.whiteDominant?QColor(0xf2,0xf2,0xf2):withAlpha(color,41));
+}
+
+void TagMarkRegistry::applyOverrides(const QString& text,TagVisual& visual) const
+{
+    for(const TagMarkOverride& item:m_overrides){
+        if(item.tag.isEmpty()||item.tag.compare(text,Qt::CaseInsensitive)!=0)
+            continue;
+        if(!item.color.trimmed().isEmpty()){
+            const QString key=item.color.trimmed();
+            QColor color=colorFor(key.toLower());
+            if(!color.isValid()){
+                if(isMultiColor(key.toLower()))
+                    applyColorName(key.toLower(),visual);
+                else if((color=QColor(key)).isValid())
+                    applySolidColor(color,visual);
+            }else{
+                applySolidColor(color,visual);
+            }
+        }
+        if(!item.icon.trimmed().isEmpty()){
+            // The user's icon goes first: it is what they added the override for.
+            const QString icon=item.icon.trimmed();
+            for(int i=int(visual.icons.size())-1;i>=0;--i)
+                if(visual.icons[i].value==icon)
+                    visual.icons.removeAt(i);
+            visual.icons.prepend(TagIconSpec{icon,QString()});
+        }
+    }
 }
 
 QStringList TagMarkRegistry::colorsInText(const QString& text) const
@@ -509,8 +544,11 @@ TagVisual TagMarkRegistry::decorate(const teTag& tag) const
     // The tag text itself is the decoration source ("gradient from a to b",
     // "red hair with blue streaks", "blue dress"). The editor control calls this
     // once per tag and stores the result; painting never runs the rules.
-    applyTextPattern(static_cast<QString>(tag),visual);
-    applyRules(static_cast<QString>(tag),visual);
+    const QString text=static_cast<QString>(tag);
+    applyTextPattern(text,visual);
+    applyRules(text,visual);
+    // The settings dialog is the user's last word: it overrides the rules above.
+    applyOverrides(text,visual);
     return visual;
 }
 

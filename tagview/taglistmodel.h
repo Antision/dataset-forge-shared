@@ -93,6 +93,9 @@ public:
     /// Announces an order change that happened behind the model's back (used by
     /// undo/redo, which reorders teTagList directly).
     void notifyExternalReorder();
+    /// Repaints every row (the display data of the tags changed without the text
+    /// changing: the decoration overrides were edited).
+    void refreshAll();
 
 private slots:
     void onListInserted(std::shared_ptr<teTag> tag);

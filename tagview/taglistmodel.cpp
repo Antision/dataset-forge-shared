@@ -127,6 +127,14 @@ bool TagListModel::setData(const QModelIndex& index,const QVariant& value,int ro
     return setTagText(index.row(),value.toString());
 }
 
+void TagListModel::refreshAll()
+{
+    if(!m_list||m_list->size()==0)
+        return;
+    emit dataChanged(index(0,0),index(int(m_list->size())-1,0),
+                     {Qt::DisplayRole,Qt::EditRole});
+}
+
 Qt::ItemFlags TagListModel::flags(const QModelIndex& index) const
 {
     // The invalid index stands for the list itself, and it has to accept drops:

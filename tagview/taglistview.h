@@ -125,6 +125,13 @@ public:
     void closeCaption();
     /// Image currently shown, or an empty string.
     QString captionImagePath() const { return m_imagePath; }
+    /**
+     * @brief Rebuilds every row's decoration from the current rules/overrides.
+     *
+     * Called after the settings dialog changed the per-tag overrides: the text
+     * did not change, so nothing else would repaint the rows.
+     */
+    void refreshDecorations();
     /// True when the shown list has changes the caption file does not have yet.
     /// The host decides what to do with it (save prompt, flash, ...); the view
     /// deliberately knows nothing about a save button.

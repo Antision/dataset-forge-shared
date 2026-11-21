@@ -382,6 +382,19 @@ void TagListView::onCaptionListGone(teTagList *list){
     clear();
 }
 
+void TagListView::refreshDecorations()
+{
+    if(!showing_list)
+        return;
+    for(const std::shared_ptr<teTag>& tag:showing_list->getTags())
+        refreshTagDecoration(tag);
+    // The editors keep their own widgets; they recompute and re-style their tags.
+    if(m_editorHost)
+        m_editorHost->refreshDecorations();
+    if(m_model)
+        m_model->refreshAll();
+}
+
 void TagListView::load(teTagList*newlist){
     hideTagDisplay();
     // Half typed word of the previous list: a new list must not be searched with

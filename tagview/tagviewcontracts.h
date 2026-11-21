@@ -93,6 +93,14 @@ public:
     /// Drops everything the editors show.
     virtual void clearAll()=0;
     /**
+     * @brief Recomputes the decoration of every tag the editors show.
+     *
+     * The user-config overrides (settings dialog) change how tags look without
+     * touching the text, so the stored decoration has to be rebuilt and every
+     * per-tag widget re-styled. Programs without editors simply ignore this.
+     */
+    virtual void refreshDecorations(){}
+    /**
      * @brief Temporarily stops the editors from merging tags.
      *
      * Undo/redo rebuilds the list from a snapshot - a state the user had. If the

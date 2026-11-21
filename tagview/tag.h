@@ -128,13 +128,18 @@ public:
     void setMark(const QString& ownerId,const QString& markId){
         if(ownerId.isEmpty()||markId.isEmpty())
             return;
+        // Same value again is not an edit. A control re-applies its marks every
+        // time it links a tag or the tag is re-read; announcing those as edits
+        // would send the tag back into every control (and around again).
+        if(marks.value(ownerId)==markId)
+            return;
         if(!marks.contains(ownerId))
             markOrder.append(ownerId);
         marks.insert(ownerId,markId);
         edited();
     }
     void clearMark(const QString& ownerId){
-        if(marks.remove(ownerId)>0){
+        if(marks.remove(ownerId)){
             markOrder.removeAll(ownerId);
             edited();
         }
