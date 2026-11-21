@@ -52,14 +52,15 @@ constexpr int kInnerStroke = 4;
 
 // ---- 配色(所有 lite 窗口共用,只在这里改) ----
 /// 最外层浅灰边框。185 太浅,和浅色桌面撞色;140 在深浅底上都看得见。
-inline const QColor kOutlineColor(140, 146, 154);
+inline const QColor kOutlineColor(92, 92, 92);
 /// 凸起条 / 标题栏,同时也是内框色。
-inline const QColor kStripColor(0x26, 0x26, 0x2c, 250);
+inline const QColor kStripColor(0x18, 0x18, 0x18, 250);
 /// 凸起条 / 标题栏上面那层"玻璃":半透明,让标题栏透出后面的东西;边框和内框
 /// 仍然用不透明的 kStripColor,所以轮廓的锐度不变。
-inline const QColor kStripGlassColor(0x26, 0x26, 0x2c, 150);
-/// body 底色。
-inline const QColor kBodyColor(0x1b, 0x1b, 0x1f, 250);
+inline const QColor kStripGlassColor(0x18, 0x18, 0x18, 150);
+/// body 底色。标题栏保持 0x18,内容区压到个位数:同一片黑里靠这一点差值,
+/// 标题栏才读成"抬起来的一条"。
+inline const QColor kBodyColor(0x03, 0x03, 0x03, 250);
 /// 内容面板相对窗口边缘让出来的距离(外框 + 内框)。
 inline constexpr int kContentInset = kStroke + kInnerStroke;
 /// 拖动把手的宽度(关闭按钮左边那一段,普通状态下只占 strip 的一格)。

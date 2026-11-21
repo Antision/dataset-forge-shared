@@ -232,7 +232,7 @@ void LiteWindow::paintEvent(QPaintEvent* event)
             if (titleFont.pointSizeF() > 0.0)
                 titleFont.setPointSizeF(qMax(8.0, titleFont.pointSizeF() - 1.5));
             painter.setFont(titleFont);
-            painter.setPen(QColor(0xc9, 0xc9, 0xcf));
+            painter.setPen(QColor(0xc9, 0xc9, 0xc9));
             const QString elided = painter.fontMetrics().elidedText(
                 windowTitle(), Qt::ElideRight, textRect.width());
             painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, elided);
