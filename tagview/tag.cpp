@@ -131,10 +131,17 @@ int teTagList::edit(std::shared_ptr<teTag> core, QString text, int removeDuplica
         core->read(text);
     }
 
-    if (removeDuplicate == 1 || removeDuplicate == 2) {
+    if ((removeDuplicate == 1 || removeDuplicate == 2) && !core->retired) {
         // Merging: the tag the user just renamed wins, every identical tag is
         // erased. Returning early here (as the old code did) is exactly what
         // left two identical tags in the list.
+        //
+        // A retired tag is skipped: an editor absorbed it while read() announced
+        // the change (the clothes editor merges "brown boots" into "boots" and
+        // retires the incoming tag) and the *survivor* now spells exactly what
+        // this tag spells. "Keep this one, erase its twins" would then erase the
+        // survivor - which is how adding "blue and white striped panties" next to
+        // "panties" deleted both.
         remove_duplicate(core, true);
     }
 

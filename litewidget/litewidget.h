@@ -21,6 +21,16 @@
 
 class QVBoxLayout;
 
+/**
+ * @brief Puts a window in the middle of its owner (or the screen) once.
+ *
+ * The first show of an owned window otherwise lands wherever its parent widget
+ * happens to sit - a dialog owned by a page at the bottom of the editor column
+ * opened at the bottom of the main window. A window the caller moved itself
+ * (WA_Moved, e.g. the menus placed at the cursor) is left alone.
+ */
+void liteCenterOnFirstShow(QWidget* window);
+
 class LiteWidget : public QWidget
 {
     Q_OBJECT

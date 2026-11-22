@@ -1,6 +1,8 @@
 #include "litewidget.h"
 
+#include <QGuiApplication>
 #include <QPainter>
+#include <QScreen>
 #include <QVBoxLayout>
 
 namespace {
@@ -26,6 +28,42 @@ LiteWidget::LiteWidget(QWidget* parent)
 }
 
 LiteWidget::~LiteWidget() = default;
+
+void liteCenterOnFirstShow(QWidget* window)
+{
+    if (!window)
+        return;
+    // A caller that placed the window itself (the menus and the add widget move
+    // to the cursor before showing) keeps its position.
+    if (window->testAttribute(Qt::WA_Moved))
+        return;
+
+    QScreen* screen = window->screen();
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    const QRect available = screen ? screen->availableGeometry() : QRect();
+
+    QRect frame(window->pos(), window->size());
+    if (QWidget* owner = window->parentWidget()) {
+        // Owned windows are placed by the system at the owner *widget's* origin,
+        // so a dialog owned by a page deep in the editor column opened at the
+        // bottom of the main window - half off-screen. The owner window's centre
+        // is where these windows belong.
+        frame.moveCenter(owner->window()->frameGeometry().center());
+    } else if (available.isValid()) {
+        frame.moveCenter(available.center());
+    }
+
+    if (available.isValid()) {
+        frame.setWidth(qMin(frame.width(), available.width()));
+        frame.setHeight(qMin(frame.height(), available.height()));
+        frame.moveLeft(qBound(available.left(), frame.left(),
+                              qMax(available.left(), available.right() - frame.width() + 1)));
+        frame.moveTop(qBound(available.top(), frame.top(),
+                             qMax(available.top(), available.bottom() - frame.height() + 1)));
+    }
+    window->setGeometry(frame);
+}
 
 void LiteWidget::setContentWidget(QWidget* widget)
 {

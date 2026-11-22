@@ -301,8 +301,13 @@ void LiteWindow::showEvent(QShowEvent* event)
         setMinimumSize(minimum);
 
     const auto it = s_savedGeometry.constFind(geometryKey());
-    if (it == s_savedGeometry.constEnd() || !it->isValid())
+    if (it == s_savedGeometry.constEnd() || !it->isValid()) {
+        // Never shown before: middle of the owner, not the system's default spot
+        // (which is the parent widget's origin - the bottom of the main window
+        // for a dialog owned by a page down the editor column).
+        liteCenterOnFirstShow(this);
         return;
+    }
 
     QRect geometry = *it;
     // 按"上次那块屏"来夹:新窗口可能被系统摆到光标所在的另一块屏上。

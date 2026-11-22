@@ -170,8 +170,12 @@ void LiteWidget2::showEvent(QShowEvent* event)
         setMinimumSize(minimum);
 
     const auto it = s_savedGeometry.constFind(geometryKey());
-    if (it == s_savedGeometry.constEnd() || !it->isValid())
+    if (it == s_savedGeometry.constEnd() || !it->isValid()) {
+        // First show: centre over the owner instead of letting the system drop
+        // the window at its parent widget's origin (see LiteWidget).
+        liteCenterOnFirstShow(this);
         return;
+    }
 
     QRect geometry = *it;
     // 按"上次那块屏"来夹:新窗口可能被系统摆到光标所在的另一块屏上,用当前屏
