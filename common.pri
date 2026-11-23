@@ -20,9 +20,13 @@ HEADERS     += $$PWD/log/log.h
 
 # --- ui:程序级外观(字体) ---
 # appFontFamily() 原来是两个程序各写一份;共用资源前缀不同,函数里都试一遍。
+# svgicon.h:Lucide 线条 SVG 的运行时着色渲染,需要 QtSvg 模块 —— 在这里
+# 统一打开,两个消费方(tqe / gi)不用各自往 .pro 里加。
 INCLUDEPATH += $$PWD/ui
 SOURCES     += $$PWD/ui/fonts.cpp
-HEADERS     += $$PWD/ui/fonts.h
+HEADERS     += $$PWD/ui/fonts.h \
+               $$PWD/ui/svgicon.h
+QT          += svg
 
 # --- task:可等待/可命名的后台任务 ---
 # 线程池由这里拥有(不再由各程序 main.cpp 定义),补全搜索与缩略图解码共用;

@@ -3,6 +3,7 @@
 #include "taglistmodel.h"
 #include "tagmarks.h"
 #include "fonts.h"
+#include "svgicon.h"
 
 #include <QAction>
 #include <QApplication>
@@ -725,13 +726,14 @@ void TagListView::setViewHost(TagViewHost* host)
 void TagListView::createMenu()
 {
     menu = new QMenu(this);
-    editAction = menu->addAction(QIcon(":/res/menu_edit.png"),"edit (F2/Ctrl+E)");
-    deleteAction = menu->addAction(QIcon(":/res/menu_remove.png"),"delete (Ctrl+D/del)");
-    insertAction = menu->addAction(QIcon(":/res/menu_add.png"),"insert above (Ctrl+W)");
-    insertBelowAction = menu->addAction(QIcon(":/res/menu_add.png"),"insert below");
-    cutAction = menu->addAction(QIcon(":/res/menu_cut.png"),"cut (Ctrl+X)");
-    copyAction = menu->addAction(QIcon(":/res/menu_copy.png"),"copy (Ctrl+C)");
-    pasteAction = menu->addAction(QIcon(":/res/menu_paste.png"),"paste (Ctrl+V)");
+    // Lucide 图标(common/ui/svgicon.h 运行时着色);旧的 menu_*.png 已删除。
+    editAction = menu->addAction(svgicon::menuIcon(":/icons/pen-line.svg"),"edit (F2/Ctrl+E)");
+    deleteAction = menu->addAction(svgicon::menuIcon(":/icons/trash.svg"),"delete (Ctrl+D/del)");
+    insertAction = menu->addAction(svgicon::menuIcon(":/icons/chevrons-up.svg"),"insert above (Ctrl+W)");
+    insertBelowAction = menu->addAction(svgicon::menuIcon(":/icons/chevrons-down.svg"),"insert below");
+    cutAction = menu->addAction(svgicon::menuIcon(":/icons/scissors.svg"),"cut (Ctrl+X)");
+    copyAction = menu->addAction(svgicon::menuIcon(":/icons/copy.svg"),"copy (Ctrl+C)");
+    pasteAction = menu->addAction(svgicon::menuIcon(":/icons/clipboard-list.svg"),"paste (Ctrl+V)");
     menu->setStyleSheet(
         R"(QMenu {
         background-color: transparent;

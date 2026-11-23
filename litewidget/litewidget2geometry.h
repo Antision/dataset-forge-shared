@@ -57,7 +57,10 @@ inline const QColor kOutlineColor(92, 92, 92);
 inline const QColor kStripColor(0x18, 0x18, 0x18, 250);
 /// 凸起条 / 标题栏上面那层"玻璃":半透明,让标题栏透出后面的东西;边框和内框
 /// 仍然用不透明的 kStripColor,所以轮廓的锐度不变。
-inline const QColor kStripGlassColor(0x18, 0x18, 0x18, 150);
+/// 透明度不能太低:这条只有 22px 高,又比 body 亮不了多少,150 时整条几乎融进
+/// 背景,拖窗口找不到可以抓的地方(用户报的就是这个)。225 仍然透一点光,但
+/// 标题栏本身已经能看清边界。
+inline const QColor kStripGlassColor(0x18, 0x18, 0x18, 225);
 /// body 底色。标题栏保持 0x18,内容区压到个位数:同一片黑里靠这一点差值,
 /// 标题栏才读成"抬起来的一条"。
 inline const QColor kBodyColor(0x03, 0x03, 0x03, 250);
