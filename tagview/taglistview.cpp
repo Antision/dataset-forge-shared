@@ -200,7 +200,12 @@ void TagListView::tagErase(int index){    hideTagDisplay();
         const int next = index<rows?index:rows-1;
         setSelectCurrentCore(showing_list->shareAt(next));
     }
-    scrollToTop();
+    // No scrollToTop() here: deleting a tag used to throw the list back to the
+    // first row, which makes cleaning up a long caption impossible (the row the
+    // user is working on is gone after every delete). The model removes its rows
+    // through beginRemoveRows/endRemoveRows, so the viewport keeps its offset on
+    // its own, and setSelectCurrentCore() only scrolls as far as the neighbour
+    // needs (EnsureVisible).
 }
 
 void TagListView::tagErase(std::shared_ptr<teTag>tag){
@@ -232,7 +237,7 @@ void TagListView::tagErase(std::shared_ptr<teTag>tag){
         const int left = m_model->rowCount();
         if(left>0)
             setSelectCurrentCore(showing_list->shareAt(std::clamp(current<0?0:current-1,0,left-1)));
-        scrollToTop();
+        // The viewport keeps its offset (see tagErase(int)).
         return;
     }
     const int pos = showing_list->find(tag);
@@ -245,7 +250,8 @@ void TagListView::tagErase(std::shared_ptr<teTag>tag){
     const int left = m_model->rowCount();
     if(left>0&&pos==current)
         setSelectCurrentCore(showing_list->shareAt(pos<left?pos:left-1));
-    scrollToTop();
+    // No scrollToTop() here either: the caller is deleting one tag, not loading a
+    // new caption (MainWindow does that explicitly).
 }
 
 

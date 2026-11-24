@@ -59,13 +59,14 @@ inline QPixmap tinted(const QString& path,const QColor& color,
         painter.setRenderHint(QPainter::Antialiasing,true);
         const QRectF area(margin,margin,size.width(),size.height());
         if(glow>0){
-            // 三圈 × 8 方位的低透明度重影:叠加后是柔和的光晕,比
-            // QGraphicsBlurEffect(需要 scene)轻得多。
+            // 三圈 × 12 方位的低透明度重影:叠加后是柔和的光晕,比
+            // QGraphicsBlurEffect(需要 scene)轻得多。0.12 而不是 0.08:
+            // 常态下也要看得出来(只在 hover 才亮的那版被当成"没有发光")。
             for(int ring=1;ring<=3;++ring){
                 const qreal radius=ring*glow;
-                for(int step=0;step<8;++step){
-                    const qreal angle=2*M_PI*step/8.0;
-                    painter.setOpacity(0.08);
+                for(int step=0;step<12;++step){
+                    const qreal angle=2*M_PI*step/12.0;
+                    painter.setOpacity(0.09);
                     renderer.render(&painter,
                         area.translated(radius*std::cos(angle),radius*std::sin(angle)));
                 }
