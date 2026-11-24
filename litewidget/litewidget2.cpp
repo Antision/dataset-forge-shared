@@ -1,5 +1,6 @@
 #include "litewidget2.h"
 
+#include "litewidget.h"             // liteCenterOnFirstShow() (first show geometry)
 #include "litewidget2geometry.h"
 #include "windowglyphbutton.h"
 

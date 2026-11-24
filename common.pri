@@ -18,13 +18,17 @@ INCLUDEPATH += $$PWD/log
 SOURCES     += $$PWD/log/log.cpp
 HEADERS     += $$PWD/log/log.h
 
-# --- ui:程序级外观(字体) ---
+# --- ui:程序级外观(字体 / 浮动提示 / 线条图标) ---
 # appFontFamily() 原来是两个程序各写一份;共用资源前缀不同,函数里都试一遍。
+# animations:createFloatingLabel() 那个"复制成功"式的浮动标签,原在 gi 根目录,
+# 去重窗口搬进 common 后它跟着过来(两边都能用)。
 # svgicon.h:Lucide 线条 SVG 的运行时着色渲染,需要 QtSvg 模块 —— 在这里
 # 统一打开,两个消费方(tqe / gi)不用各自往 .pro 里加。
 INCLUDEPATH += $$PWD/ui
-SOURCES     += $$PWD/ui/fonts.cpp
+SOURCES     += $$PWD/ui/fonts.cpp \
+               $$PWD/ui/animations.cpp
 HEADERS     += $$PWD/ui/fonts.h \
+               $$PWD/ui/animations.h \
                $$PWD/ui/svgicon.h
 QT          += svg
 
